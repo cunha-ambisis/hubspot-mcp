@@ -9,7 +9,7 @@ const START_DELAY = 1_000 // 1s
 const TEST_TIMEOUT = 10_000 // 10s
 const SEARCH_DELAY = 8 // 8s
 
-const TOTAL_TOOLS = 112
+const TOTAL_TOOLS = 117
 
 const streamableClientUrl = new URL(`http://localhost:${process.env.PORT || 3000}/mcp`)
 

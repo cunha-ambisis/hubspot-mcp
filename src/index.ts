@@ -193,6 +193,43 @@ function createServer({ config }: { config?: any } = {}) {
 
   // Companies: https://developers.hubspot.com/docs/reference/api/crm/objects/companies
 
+  const crmPropertyOptionSchema = z.object({
+    label: z.string(),
+    value: z.string(),
+    description: z.string().optional(),
+    displayOrder: z.number().optional(),
+    hidden: z.boolean().optional()
+  }).catchall(z.any())
+
+  const crmPropertyCreateSchema = {
+    name: z.string(),
+    label: z.string(),
+    type: z.enum(['string', 'number', 'date', 'datetime', 'enumeration', 'bool']),
+    fieldType: z.enum(['text', 'textarea', 'select', 'radio', 'checkbox', 'booleancheckbox', 'number', 'date', 'file', 'html', 'phonenumber', 'calculation_equation']),
+    groupName: z.string(),
+    description: z.string().optional(),
+    options: z.array(crmPropertyOptionSchema).optional(),
+    displayOrder: z.number().optional(),
+    hasUniqueValue: z.boolean().optional(),
+    hidden: z.boolean().optional(),
+    formField: z.boolean().optional(),
+    calculationFormula: z.string().optional()
+  }
+
+  const crmPropertyUpdateSchema = {
+    propertyName: z.string(),
+    label: z.string().optional(),
+    type: z.enum(['string', 'number', 'date', 'datetime', 'enumeration', 'bool']).optional(),
+    fieldType: z.enum(['text', 'textarea', 'select', 'radio', 'checkbox', 'booleancheckbox', 'number', 'date', 'file', 'html', 'phonenumber', 'calculation_equation']).optional(),
+    groupName: z.string().optional(),
+    description: z.string().optional(),
+    options: z.array(crmPropertyOptionSchema).optional(),
+    displayOrder: z.number().optional(),
+    hidden: z.boolean().optional(),
+    formField: z.boolean().optional(),
+    calculationFormula: z.string().optional()
+  }
+
   const companyPropertiesSchema = z.object({
     name: z.string().optional(),
     domain: z.string().optional(),
@@ -385,6 +422,118 @@ function createServer({ config }: { config?: any } = {}) {
       return handleEndpoint(async () => {
         const endpoint = '/crm/v3/properties/companies'
         return await makeApiRequestWithErrorHandling(hubspotAccessToken, endpoint, {}, 'POST', params)
+      })
+    }
+  )
+
+  server.tool("crm_get_deal_properties",
+    "Get all properties for deals",
+    {
+      archived: z.boolean().optional(),
+      properties: z.array(z.string()).optional()
+    },
+    async (params) => {
+      return handleEndpoint(async () => {
+        const endpoint = '/crm/v3/properties/deals'
+        return await makeApiRequestWithErrorHandling(hubspotAccessToken, endpoint, {
+          archived: params.archived,
+          properties: params.properties?.join(',')
+        })
+      })
+    }
+  )
+
+  server.tool("crm_get_deal_property",
+    "Get a single deal property definition by internal property name",
+    {
+      propertyName: z.string(),
+      archived: z.boolean().optional()
+    },
+    async (params) => {
+      return handleEndpoint(async () => {
+        const endpoint = `/crm/v3/properties/deals/${params.propertyName}`
+        return await makeApiRequestWithErrorHandling(hubspotAccessToken, endpoint, {
+          archived: params.archived
+        })
+      })
+    }
+  )
+
+  server.tool("crm_create_deal_property",
+    "Create a new deal property",
+    crmPropertyCreateSchema,
+    async (params) => {
+      return handleEndpoint(async () => {
+        const endpoint = '/crm/v3/properties/deals'
+        return await makeApiRequestWithErrorHandling(hubspotAccessToken, endpoint, {}, 'POST', params)
+      })
+    }
+  )
+
+  server.tool("crm_update_deal_property",
+    "Update an existing deal property definition. When updating options, provide the full final options array.",
+    crmPropertyUpdateSchema,
+    async (params) => {
+      return handleEndpoint(async () => {
+        const { propertyName, ...propertyUpdate } = params
+        const endpoint = `/crm/v3/properties/deals/${propertyName}`
+        return await makeApiRequestWithErrorHandling(hubspotAccessToken, endpoint, {}, 'PATCH', propertyUpdate)
+      })
+    }
+  )
+
+  server.tool("crm_get_ticket_properties",
+    "Get all properties for tickets",
+    {
+      archived: z.boolean().optional(),
+      properties: z.array(z.string()).optional()
+    },
+    async (params) => {
+      return handleEndpoint(async () => {
+        const endpoint = '/crm/v3/properties/tickets'
+        return await makeApiRequestWithErrorHandling(hubspotAccessToken, endpoint, {
+          archived: params.archived,
+          properties: params.properties?.join(',')
+        })
+      })
+    }
+  )
+
+  server.tool("crm_get_ticket_property",
+    "Get a single ticket property definition by internal property name",
+    {
+      propertyName: z.string(),
+      archived: z.boolean().optional()
+    },
+    async (params) => {
+      return handleEndpoint(async () => {
+        const endpoint = `/crm/v3/properties/tickets/${params.propertyName}`
+        return await makeApiRequestWithErrorHandling(hubspotAccessToken, endpoint, {
+          archived: params.archived
+        })
+      })
+    }
+  )
+
+  server.tool("crm_create_ticket_property",
+    "Create a new ticket property",
+    crmPropertyCreateSchema,
+    async (params) => {
+      return handleEndpoint(async () => {
+        const endpoint = '/crm/v3/properties/tickets'
+        return await makeApiRequestWithErrorHandling(hubspotAccessToken, endpoint, {}, 'POST', params)
+      })
+    }
+  )
+
+  server.tool("crm_update_ticket_property",
+    "Update an existing ticket property definition. When updating options, provide the full final options array.",
+    crmPropertyUpdateSchema,
+    async (params) => {
+      return handleEndpoint(async () => {
+        const { propertyName, ...propertyUpdate } = params
+        const endpoint = `/crm/v3/properties/tickets/${propertyName}`
+        return await makeApiRequestWithErrorHandling(hubspotAccessToken, endpoint, {}, 'PATCH', propertyUpdate)
       })
     }
   )

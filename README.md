@@ -126,6 +126,13 @@ pnpm i
   - `crm_get_company_properties`: Get all available company properties
   - `crm_create_company_property`: Create a new company property
 
+### Deals
+
+  - `crm_get_deal_properties`: Get all available deal properties
+  - `crm_get_deal_property`: Get a single deal property definition by internal property name
+  - `crm_create_deal_property`: Create a new deal property
+  - `crm_update_deal_property`: Update an existing deal property definition, including select/radio/checkbox options
+
 ### Contacts
 
   - `crm_create_contact`: Create a new contact with validated properties
