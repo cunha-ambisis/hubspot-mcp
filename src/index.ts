@@ -22,6 +22,59 @@ function formatResponse(data: any) {
   return { content: [{ type: "text", text }] }
 }
 
+async function makeHubSpotJsonRequest(apiKey: string, endpoint: string, params: Record<string, any> = {}) {
+  if (!apiKey) {
+    throw new Error("HUBSPOT_ACCESS_TOKEN environment variable is not set")
+  }
+
+  const queryParams = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined) queryParams.append(key, value.toString())
+  })
+
+  const url = `https://api.hubapi.com${endpoint}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+  const response = await fetch(url, {
+    headers: {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    }
+  })
+
+  if (!response.ok) {
+    const details = await response.text()
+    throw new Error(`Error fetching data from HubSpot: Status ${response.status}${details ? ` - ${details}` : ''}`)
+  }
+
+  return await response.json()
+}
+
+async function downloadFileFromUrl(url: string, maxBytes: number) {
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    const details = await response.text()
+    throw new Error(`Error downloading HubSpot file: Status ${response.status}${details ? ` - ${details}` : ''}`)
+  }
+
+  const contentLength = response.headers.get('content-length')
+  if (contentLength && Number(contentLength) > maxBytes) {
+    throw new Error(`HubSpot file is too large to download (${contentLength} bytes, max ${maxBytes} bytes)`)
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer())
+  if (buffer.byteLength > maxBytes) {
+    throw new Error(`HubSpot file is too large to return (${buffer.byteLength} bytes, max ${maxBytes} bytes)`)
+  }
+
+  const mimeType = response.headers.get('content-type')?.split(';')[0] || 'application/octet-stream'
+
+  return {
+    mimeType,
+    byteLength: buffer.byteLength,
+    base64: buffer.toString('base64')
+  }
+}
+
 async function makeApiRequest(apiKey: string, endpoint: string, params: Record<string, any> = {}, method = 'GET', body: Record<string, any> | null = null) {
   if (!apiKey) {
     throw new Error("HUBSPOT_ACCESS_TOKEN environment variable is not set")
@@ -95,6 +148,48 @@ function createServer({ config }: { config?: any } = {}) {
       exporterEndpoint: "https://api.otel.shinzo.tech/v1"
     })
   }
+
+  // Files: https://developers.hubspot.com/docs/reference/api/files/files
+
+  server.tool("files_get",
+    "Get HubSpot file metadata and a signed URL. Optionally download small files as base64 content.",
+    {
+      fileId: z.string(),
+      expirationSeconds: z.number().min(1).max(86400).optional(),
+      includeContent: z.boolean().optional(),
+      maxBytes: z.number().min(1).max(25 * 1024 * 1024).optional()
+    },
+    async (params) => {
+      return handleEndpoint(async () => {
+        const signedUrlResponse = await makeHubSpotJsonRequest(
+          hubspotAccessToken,
+          `/files/v3/files/${params.fileId}/signed-url`,
+          { expirationSeconds: params.expirationSeconds }
+        )
+
+        if (!params.includeContent) {
+          return formatResponse(signedUrlResponse)
+        }
+
+        const signedUrl = signedUrlResponse.url
+        if (!signedUrl || typeof signedUrl !== 'string') {
+          return formatResponse({
+            ...signedUrlResponse,
+            contentError: "HubSpot did not return a signed file URL"
+          })
+        }
+
+        const fileContent = await downloadFileFromUrl(signedUrl, params.maxBytes || 5 * 1024 * 1024)
+        return formatResponse({
+          ...signedUrlResponse,
+          content: {
+            ...fileContent,
+            dataUri: `data:${fileContent.mimeType};base64,${fileContent.base64}`
+          }
+        })
+      })
+    }
+  )
 
   // Companies: https://developers.hubspot.com/docs/reference/api/crm/objects/companies
 
